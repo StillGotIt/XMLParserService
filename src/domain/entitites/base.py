@@ -8,3 +8,5 @@ class BaseEntity(ABC):
     @abstractmethod
     def to_dict(self):
         ...
+
+

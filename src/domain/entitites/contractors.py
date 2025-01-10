@@ -32,4 +32,5 @@ class ContractorWithId(ContractorEntity):
             "short_name": self.short_name,
             "KPP": self.KPP,
             "INN": self.INN,
-            "OGRN": self.OGRN}
+            "OGRN": self.OGRN  # noqa
+        }
