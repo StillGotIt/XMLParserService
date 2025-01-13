@@ -1,9 +1,9 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from io import BytesIO
 from typing import Callable, Iterable
 
-from fastapi import UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.domain.entitites.activities import ContractorActivityEntity
@@ -14,6 +14,10 @@ from src.domain.entitites.composer import (
     ActivityAddressContractorWithIdComposer,
 )
 from src.infra.db.sql.db import AsyncPostgresClient
+from src.infra.repos.activities import ActivityRepository
+from src.infra.repos.activities_contractors import ActivityContractorRepository
+from src.infra.repos.adresses import AddressRepository
+from src.infra.repos.contractors import ContractorRepository
 from src.logic.services.activity_contractor_service import ActivityContractorService
 from src.logic.services.activity_service import ActivityService
 from src.logic.services.address_service import AddressService
@@ -37,12 +41,12 @@ class AddContractorActivityAddressUseCase:
     async_client: AsyncPostgresClient
     xml_parser_service: XMLParserService
 
-    async def scrape_and_create(self, file: UploadFile):
+    async def scrape_and_create(self, file_content: BytesIO):
         """Основной юзкейс агрегатор, который тригерит скрэпинг xml, а после пишет всё в БД"""
-        logger.info(f"Starting to scrape and create entities from XML: {file}")
+        logger.info(f"Starting to scrape and create entities from XML")
 
         try:
-            entities_list = await self.xml_parser_service.scrape_egrul(file=file)
+            entities_list = self.xml_parser_service.scrape_egrul(file_content=file_content)
 
             contractors = await self.bulk_create_entities(
                 entities_list, self.process_contractor_entity
@@ -74,10 +78,10 @@ class AddContractorActivityAddressUseCase:
             raise e
 
     async def bulk_create_entities(
-        self,
-        entities_list: Iterable[BaseEntity],
-        process_func: Callable,
-        chunk_size: int = 500,
+            self,
+            entities_list: Iterable[BaseEntity],
+            process_func: Callable,
+            chunk_size: int = 500,
     ) -> list[ActivityAddressContractorWithIdComposer]:
         """Общая структура для асинхронной вставки пачек данных в БД.
         Принимает функцию, в данном случае метод класса и тригерит его
@@ -96,7 +100,6 @@ class AddContractorActivityAddressUseCase:
         if chunk:
             results = await asyncio.gather(*chunk, return_exceptions=True)
             successful_results.extend(self.filter_successful_results(results))
-        logger.info(f"Finished processing entities of {len(entities_list)}")
 
         return successful_results
 
@@ -112,7 +115,7 @@ class AddContractorActivityAddressUseCase:
         return successful
 
     async def process_contractor_entity(
-        self, entity: ActivityAddressContractorComposer
+            self, entity: ActivityAddressContractorComposer
     ) -> ActivityAddressContractorWithIdComposer:
         async with self.async_client.create_session() as session:
             try:
@@ -141,7 +144,7 @@ class AddContractorActivityAddressUseCase:
                 logger.error(f"Error processing contractor entity: {entity.contractor}")
 
     async def process_activity_entity(
-        self, entity: ActivityAddressContractorWithIdComposer
+            self, entity: ActivityAddressContractorWithIdComposer
     ):
         async with self.async_client.create_session() as session:
             try:
@@ -181,3 +184,16 @@ class AddContractorActivityAddressUseCase:
             except SQLAlchemyError:
                 await session.rollback()
                 logger.error(f"Error processing activity entity")
+
+
+def get_scrape_and_create_use_case() -> AddContractorActivityAddressUseCase:
+    return AddContractorActivityAddressUseCase(
+        contractor_service=ContractorService(ContractorRepository()),
+        activity_service=ActivityService(ActivityRepository()),
+        address_service=AddressService(AddressRepository()),
+        activity_contractor_service=ActivityContractorService(
+            ActivityContractorRepository()
+        ),
+        async_client=AsyncPostgresClient(),
+        xml_parser_service=XMLParserService(),
+    )
