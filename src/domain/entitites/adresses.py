@@ -1,36 +1,50 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional
 
 from src.domain.entitites.base import BaseEntity
 
 
 @dataclass(eq=False)
 class AddressEntity(BaseEntity):
-    region: str
-    city: str
-    street: str
-    postal_code: str
-    house: str
+    region: Optional[str]
+    municipality: Optional[str]
+    locality: Optional[str]
+    street: Optional[str]
+    postal_code: Optional[str]
+    building: Optional[str]
+    contractor_id: Optional[int] = field(default=None)
 
     def to_dict(self):
         return {
+            "contractor_id": self.contractor_id,
             "region": self.region,
-            "city": self.city,
+            "municipality": self.municipality,
+            "locality": self.locality,
             "street": self.street,
             "postal_code": self.postal_code,
-            "house": self.house,
+            "building": self.building,
         }
 
 
 @dataclass(eq=False)
-class AddressEntityWithId(AddressEntity):
+class AddressWithIdEntity(BaseEntity):
     id: int
+    region: Optional[str]
+    municipality: Optional[str]
+    locality: Optional[str]
+    street: Optional[str]
+    postal_code: Optional[str]
+    building: Optional[str]
+    contractor_id: Optional[int] = field(default=None)
 
     def to_dict(self):
         return {
             "id": self.id,
+            "contractor_id": self.contractor_id,
             "region": self.region,
-            "city": self.city,
+            "municipality": self.municipality,
+            "locality": self.locality,
             "street": self.street,
             "postal_code": self.postal_code,
-            "house": self.house,
+            "building": self.building,
         }

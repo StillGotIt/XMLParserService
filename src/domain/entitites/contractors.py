@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from src.domain.entitites.base import BaseEntity
 
@@ -6,23 +7,23 @@ from src.domain.entitites.base import BaseEntity
 @dataclass(eq=False)
 class ContractorEntity(BaseEntity):
     full_name: str
-    short_name: str
-    KPP: str
-    INN: str
-    OGRN: str  # noqa
+    short_name: Optional[str]
+    kpp: str
+    inn: str
+    ogrn: str  # noqa
 
     def to_dict(self):
         return {
             "full_name": self.full_name,
             "short_name": self.short_name,
-            "KPP": self.KPP,
-            "INN": self.INN,
-            "OGRN": self.OGRN  # noqa
+            "kpp": self.kpp,
+            "inn": self.inn,
+            "ogrn": self.ogrn  # noqa
         }
 
 
 @dataclass(eq=False)
-class ContractorWithId(ContractorEntity):
+class ContractorWithIdEntity(ContractorEntity):
     id: int
 
     def to_dict(self):
@@ -30,7 +31,7 @@ class ContractorWithId(ContractorEntity):
             "id": self.id,
             "full_name": self.full_name,
             "short_name": self.short_name,
-            "KPP": self.KPP,
-            "INN": self.INN,
-            "OGRN": self.OGRN  # noqa
+            "kpp": self.kpp,
+            "inn": self.inn,
+            "ogrn": self.ogrn  # noqa
         }

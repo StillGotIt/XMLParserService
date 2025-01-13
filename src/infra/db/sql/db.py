@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from typing import AsyncGenerator
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
@@ -16,7 +17,7 @@ class AsyncPostgresClient:
         )
 
     @asynccontextmanager
-    async def create_session(self) -> AsyncSession:
+    async def create_session(self) -> AsyncGenerator[AsyncSession, None]:
         async with self.session_factory() as session:
             try:
                 yield session
