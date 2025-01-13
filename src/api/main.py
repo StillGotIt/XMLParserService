@@ -30,7 +30,7 @@ def get_app():
     ):
         if not bool(file.filename.lower().endswith("xml")):
             raise HTTPException(
-                status_code=400, detail="Файлы только форматом xml могут быть приняты"
+                status_code=400, detail="Only xml files can be processed"
             )
         file_content = await open_file(file=file)
         try:
@@ -38,6 +38,6 @@ def get_app():
             await scrape_and_create_use_case.scrape_and_create(file_content=file_content)
             return HTTP_200_OK
         except ValueError:
-            raise HTTPException(status_code=400, detail="Файл неверной структуры")
+            raise HTTPException(status_code=400, detail="Wrong file structure")
 
     return app
