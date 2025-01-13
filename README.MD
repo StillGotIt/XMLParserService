@@ -25,14 +25,25 @@
 - **asyncpg** — асинхронный движок для бд.
 - **Alembic** — Для миграций базы данных.
 
+
+## TODO 
+
+#### 1. поставить celery и вынести скрейпинг в фон
+#### 2. больше тестов
+#### 3. вкинуть DI punq/dishka
+
 ## Установка
 
 ### 1. Клонируйте репозиторий
 ``` 
-git clone https://github.com/yourusername/xml-parser.git
+git clone https://github.com/StillGotIt/XMLParserService.git
 ```
 
 ### 2. Поднимите контейнеры с помощью docker
+
+### Создайте .env файл по примеру .env_example
+
+### 3. Поднимите контейнеры с помощью docker
 
 ```
 docker-compose up --build
