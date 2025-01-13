@@ -157,12 +157,13 @@ class XMLParserService:
             raise ValueError(f"Error parsing contractor entity: {e}")
 
     def scrape_address_entity(self, contractor_element) -> Optional[AddressEntity]:
-        if contractor_element:
-            if contractor_element.get(".//АдресРФ") is not None:
+        try:
+            if contractor_element.find(".//АдресРФ") is not None:
                 return self._scrape_address_address_case(contractor_element)
-            elif contractor_element.get(".//СвАдрЮЛФИАС") is not None:
+            elif contractor_element.find(".//СвАдрЮЛФИАС") is not None:
                 return self._scrape_address_no_address_case(contractor_element)
-        raise ValueError("Wrong File format")
+        except Exception:
+            raise ValueError("Wrong File format")
 
     @staticmethod
     def scrape_activities(contractor_element) -> list[ActivityEntity]:

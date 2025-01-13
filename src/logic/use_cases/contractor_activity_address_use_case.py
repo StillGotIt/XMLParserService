@@ -13,7 +13,7 @@ from src.domain.entitites.composer import (
 )
 from src.infra.db.sql.db import AsyncPostgresClient
 from src.infra.db.sql.models.models import Contractor, Address, Activity
-from src.logic.services.xml_parser import XMLParserService, open_file
+from src.logic.services.xml_parser import XMLParserService
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +35,8 @@ class AddContractorActivityAddressUseCase:
         try:
             entities_list = self.xml_parser_service.scrape_egrul(file_content=file_content)
             logger.info(f"Scraped entitites len={len(entities_list)}")
-            result = await self.bulk_create_entities(entities_list=entities_list, process_func=self.bulk_create_all)
+            result = await self.bulk_create_entities(entities_list=entities_list, process_func=self.bulk_create_all,
+                                                     chunk_size=1000)
             logger.info(f"Added entitites to db")
             return result
 
