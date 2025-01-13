@@ -1,5 +1,9 @@
+from io import BytesIO
+
 import pytest
 from unittest import mock
+
+from src.domain.entitites.composer import ActivityAddressContractorComposer
 from src.logic.services.xml_parser import XMLParserService
 
 
@@ -47,30 +51,36 @@ def test_scrape_activities(mock_upload_file, contractor_element):
 
 
 @pytest.mark.asyncio
-async def test_scrape_egrul(mock_upload_file):
-    xml_file = mock_upload_file
+async def test_scrape_egrul():
+    xml_file = BytesIO("<root><СвЮЛ></СвЮЛ></root>".encode("utf-8"))
     contractor_element = mock.Mock(tag="СвЮЛ")
-    activities_set = set()
 
     with mock.patch(
-        "src.logic.services.xml_parser.XMLParserService.scrape_contractor_composer"
+            "src.logic.services.xml_parser.XMLParserService.scrape_contractor_composer"
     ) as mock_scrape_composer:
-        mock_scrape_composer.return_value = (contractor_element, activities_set)
+        mock_scrape_composer.return_value = (mock.Mock(spec=ActivityAddressContractorComposer), set())
+
         with mock.patch("xml.etree.ElementTree.iterparse") as mock_iterparse:
             mock_iterparse.return_value = [("end", contractor_element)]
 
-            (
-                parsed_contractors,
-                parsed_activities,
-            ) = await XMLParserService().scrape_egrul(xml_file)
+            parsed_contractors = XMLParserService().scrape_egrul(xml_file)
 
-            mock_scrape_composer.assert_called_once()
+            mock_scrape_composer.assert_called_once_with(contractor_element)
+
             assert len(parsed_contractors) == 1
-            assert len(parsed_activities) == 0
+            assert isinstance(parsed_contractors[0], ActivityAddressContractorComposer)
+
+
+@pytest.mark.asyncio
+async def test_scrape_egrul_invalid_xml():
+    invalid_xml_file = BytesIO("<root><СвЮЛ></СвЮЛ></root>".encode("utf-8"))
+
+    with pytest.raises(ValueError):
+        XMLParserService().scrape_egrul(invalid_xml_file)
 
 
 def test_scrape_address_address_case_with_valid_values(
-    mock_upload_file, contractor_element
+        mock_upload_file, contractor_element
 ):
     contractor_element.find = mock.Mock()
     contractor_element.find.return_value.get = mock.Mock(
@@ -94,7 +104,7 @@ def test_scrape_address_address_case_with_valid_values(
 
 
 def test_scrape_address_address_case_with_missing_region(
-    mock_upload_file, contractor_element
+        mock_upload_file, contractor_element
 ):
     contractor_element.find = mock.Mock()
     contractor_element.find.return_value.get = mock.Mock(
@@ -117,7 +127,7 @@ def test_scrape_address_address_case_with_missing_region(
 
 
 def test_scrape_address_address_case_with_missing_address_data(
-    mock_upload_file, contractor_element
+        mock_upload_file, contractor_element
 ):
     contractor_element.find = mock.Mock()
     contractor_element.find.return_value.get = mock.Mock(
@@ -142,7 +152,7 @@ def test_scrape_address_address_case_with_missing_address_data(
 
 
 def test_scrape_address_address_case_with_fallbacks(
-    mock_upload_file, contractor_element
+        mock_upload_file, contractor_element
 ):
     contractor_element.find = mock.Mock()
     contractor_element.find.return_value.get = mock.Mock(

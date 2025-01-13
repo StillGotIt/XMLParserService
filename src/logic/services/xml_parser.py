@@ -19,6 +19,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def open_file(file: UploadFile) -> io.BytesIO:
+    file_content = await file.read()
+
+    if not file_content:
+        logger.error(f"File {file.filename} is empty.")
+        raise ValueError(f"File {file.filename} is empty.")
+
+    file_content = io.BytesIO(file_content)
+    return file_content
+
+
 class XMLParserService:
     @staticmethod
     def _get_first_existing_value(
@@ -138,14 +149,21 @@ class XMLParserService:
                 inn=contractor_info["inn"],
                 ogrn=contractor_info["ogrn"],
             )
+        except ValueError:
+            raise ValueError("Such value not found")
+
         except Exception as e:
             logger.error(f"Error parsing contractor entity: {e}")
             raise ValueError(f"Error parsing contractor entity: {e}")
 
     def scrape_address_entity(self, contractor_element) -> Optional[AddressEntity]:
-        if contractor_element.find(".//АдресРФ") is not None:
-            return self._scrape_address_address_case(contractor_element)
-        return self._scrape_address_no_address_case(contractor_element)
+        try:
+            if contractor_element.find(".//АдресРФ") is not None:
+                return self._scrape_address_address_case(contractor_element)
+            elif contractor_element.find(".//СвАдрЮЛФИАС") is not None:
+                return self._scrape_address_no_address_case(contractor_element)
+        except Exception:
+            raise ValueError("Wrong File format")
 
     @staticmethod
     def scrape_activities(contractor_element) -> list[ActivityEntity]:
@@ -181,21 +199,13 @@ class XMLParserService:
             activities_set,
         )
 
-    async def scrape_egrul(
-        self, file: UploadFile
-    ) -> tuple[list[ActivityAddressContractorComposer], set]:
-        logger.info(f"Starting to scrape EGRUL file: {file.filename}")
+    def scrape_egrul(
+        self, file_content: io.BytesIO
+    ) -> list[ActivityAddressContractorComposer]:
+        logger.info(f"Starting to scrape EGRUL file:")
         try:
             scraped_contractors = []
-            _all_activities_set = set()
 
-            file_content = await file.read()
-
-            if not file_content:
-                logger.error(f"File {file.filename} is empty.")
-                raise ValueError(f"File {file.filename} is empty.")
-
-            file_content = io.BytesIO(file_content)
             for event, contractor_element in Et.iterparse(
                 file_content, events=("end",)
             ):
@@ -204,14 +214,13 @@ class XMLParserService:
                         contractor_element
                     )
                     scraped_contractors.append(composer_entity)
-                    _all_activities_set |= activities_set
                     contractor_element.clear()
 
             logger.info(
                 f"Finished scraping xml file total_contractors={len(scraped_contractors)}"
             )
-            return scraped_contractors, _all_activities_set
+            return scraped_contractors
 
-        except Et.ParseError as e:
-            logger.error(f"Файл неверной структуры {file.filename}: {e}")
-            raise ValueError(f"Файл неверной структуры {file.filename}: {e}")
+        except Et.ParseError:
+            logger.error(f"Wrong file structure")
+            raise ValueError(f"Wrong file structure")
