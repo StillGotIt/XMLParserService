@@ -4,7 +4,7 @@ from src.infra.db.sql.models.base import BaseSQLModel, Base
 
 
 class Contractor(BaseSQLModel):
-    __tablename__ = 'contractors'  # noqa
+    __tablename__ = "contractors"  # noqa
     full_name = Column(Text, nullable=False)
     short_name = Column(Text, nullable=True)
     inn = Column(String(12), unique=True, nullable=False)
@@ -15,21 +15,17 @@ class Contractor(BaseSQLModel):
         "Activity",
         secondary="activities_contractors",
         back_populates="contractors",
-        cascade="all, delete"
+        cascade="all, delete",
     )
     addresses = relationship(
-        "Address",
-        back_populates="contractor",
-        cascade="all, delete-orphan"
+        "Address", back_populates="contractor", cascade="all, delete-orphan"
     )
 
 
 class Address(BaseSQLModel):
-    __tablename__ = 'addresses'  # noqa
+    __tablename__ = "addresses"  # noqa
     contractor_id = Column(
-        Integer,
-        ForeignKey('contractors.id', ondelete="CASCADE"),
-        nullable=False
+        Integer, ForeignKey("contractors.id", ondelete="CASCADE"), nullable=False
     )
     region = Column(Text, nullable=True)
     locality = Column(Text)
@@ -42,7 +38,7 @@ class Address(BaseSQLModel):
 
 
 class Activity(BaseSQLModel):
-    __tablename__ = 'activities'  # noqa
+    __tablename__ = "activities"  # noqa
     code = Column(String(10), nullable=True)
     name = Column(Text, nullable=True)
 
@@ -50,19 +46,15 @@ class Activity(BaseSQLModel):
         "Contractor",
         secondary="activities_contractors",
         back_populates="activities",
-        cascade="all, delete"
+        cascade="all, delete",
     )
 
 
 class ActivityContractor(Base):
-    __tablename__ = 'activities_contractors'  # noqa
+    __tablename__ = "activities_contractors"  # noqa
     contractor_id = Column(
-        Integer,
-        ForeignKey('contractors.id', ondelete="CASCADE"),
-        primary_key=True
+        Integer, ForeignKey("contractors.id", ondelete="CASCADE"), primary_key=True
     )
     activity_id = Column(
-        Integer,
-        ForeignKey('activities.id', ondelete="CASCADE"),
-        primary_key=True
+        Integer, ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True
     )

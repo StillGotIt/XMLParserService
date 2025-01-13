@@ -12,7 +12,9 @@ from src.infra.repos.base import BaseRepository
 class AddressRepository(BaseRepository):
     model: Type[Address] = Address
 
-    async def read(self, data: dict[Any, Any], session: AsyncSession) -> RowMapping | None:
+    async def read(
+        self, data: dict[Any, Any], session: AsyncSession
+    ) -> RowMapping | None:
         query = select(
             self.model.id,
             self.model.contractor_id,
@@ -26,7 +28,9 @@ class AddressRepository(BaseRepository):
         result = await session.execute(query)
         return result.mappings().fetchone()
 
-    async def create(self, data: dict[Any, Any], session: AsyncSession) -> RowMapping | None:
+    async def create(
+        self, data: dict[Any, Any], session: AsyncSession
+    ) -> RowMapping | None:
         query = (
             insert(self.model)
             .values(data)

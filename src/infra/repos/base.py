@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 from dataclasses import dataclass
 from typing import Any, Type
 
-from sqlalchemy import RowMapping, insert, select
+from sqlalchemy import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infra.db.sql.models.base import BaseSQLModel
@@ -17,5 +17,7 @@ class BaseRepository(ABC):
         ...
 
     @abstractmethod
-    async def read(self, data: dict[Any, Any], session: AsyncSession) -> RowMapping | None:
+    async def read(
+        self, data: dict[Any, Any], session: AsyncSession
+    ) -> RowMapping | None:
         ...

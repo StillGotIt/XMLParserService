@@ -1,0 +1,38 @@
+services:
+  python-app:
+    build: .
+    container_name: xmlparserservice
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    restart: on-failure:5
+    volumes:
+      - .:/app
+    networks:
+      - xmlparserservice_network
+    ports:
+      - "8000:8000"
+    command: uvicorn --factory src.api.main:get_app --host 0.0.0.0 --port 8000 --reload
+
+  postgres:
+    image: postgres:latest
+    container_name: xmlparserservicepostgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - xmlparserservice_network
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+networks:
+  xmlparserservice_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local

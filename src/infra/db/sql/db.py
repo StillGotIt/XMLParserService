@@ -12,9 +12,7 @@ from src.common.settings import get_sql_url
 class AsyncPostgresClient:
     def __post_init__(self):
         self.engine = create_async_engine(get_sql_url())
-        self.session_factory = async_sessionmaker(
-            bind=self.engine, class_=AsyncSession
-        )
+        self.session_factory = async_sessionmaker(bind=self.engine, class_=AsyncSession)
 
     @asynccontextmanager
     async def create_session(self) -> AsyncGenerator[AsyncSession, None]:

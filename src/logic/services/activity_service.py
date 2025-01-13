@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.converters.entity_converters import to_activity_entity
@@ -13,10 +13,20 @@ from src.infra.repos.activities import ActivityRepository
 class ActivityService:
     repository: ActivityRepository
 
-    async def get_or_create(self, entity: ActivityEntity, session:AsyncSession) -> BaseEntity:
+    async def get_or_create(
+        self, entity: ActivityEntity, session: AsyncSession
+    ) -> BaseEntity:
         try:
-            if activity_entity := await self.repository.read(data=entity.to_dict(), session=session):
+            if activity_entity := await self.repository.read(
+                data=entity.to_dict(), session=session
+            ):
                 return to_activity_entity(activity_entity)
-            return to_activity_entity(await self.repository.create(data=entity.to_dict(), session=session))
+            return to_activity_entity(
+                await self.repository.create(data=entity.to_dict(), session=session)
+            )
+
+        except IntegrityError as e:
+            raise ValueError(f"Integrity error: {e.orig}")
+
         except SQLAlchemyError as e:
-            raise e
+            raise e.args

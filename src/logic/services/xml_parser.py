@@ -1,7 +1,10 @@
+import io
 import logging
 from typing import Optional
 
 import xml.etree.ElementTree as Et
+
+from fastapi import UploadFile
 
 from src.domain.entitites.activities import ActivityEntity
 from src.domain.entitites.adresses import AddressEntity
@@ -10,10 +13,8 @@ from src.domain.entitites.contractors import ContractorEntity
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -21,53 +22,49 @@ logger = logging.getLogger(__name__)
 class XMLParserService:
     @staticmethod
     def _get_first_existing_value(
-            element: Et.Element,
-            paths: list[str],
-            attribute: Optional[str] = None) -> Optional[str]:
+        element: Et.Element, paths: list[str], attribute: Optional[str] = None
+    ) -> Optional[str]:
         for path in paths:
             found_element = element.find(path)
             if found_element is not None:
-                value = found_element.get(attribute) if attribute else found_element.text
+                value = (
+                    found_element.get(attribute) if attribute else found_element.text
+                )
                 return value
         return None
 
-    def _scrape_address_address_case(self, contractor_element: Et.Element) -> AddressEntity:
+    def _scrape_address_address_case(
+        self, contractor_element: Et.Element
+    ) -> AddressEntity:
         region = self._get_first_existing_value(
             contractor_element,
             paths=[".//НаимРегион", ".//Регион"],
-            attribute="НаимРегион"
+            attribute="НаимРегион",
         )
         municipality = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//МуниципРайон"],
-            attribute="Наим"
+            contractor_element, paths=[".//МуниципРайон"], attribute="Наим"
         )
-        locality = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//НаселенПункт", ".//ГородСелПоселен", ".//Город"],
-            attribute="Наим"
-        ) or region
+        locality = (
+            self._get_first_existing_value(
+                contractor_element,
+                paths=[".//НаселенПункт", ".//ГородСелПоселен", ".//Город"],
+                attribute="Наим",
+            )
+            or region
+        )
 
         street = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//Улица"],
-            attribute="НаимУлица"
+            contractor_element, paths=[".//Улица"], attribute="НаимУлица"
         )
 
         building = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//АдресРФ"],
-            attribute="Дом"
+            contractor_element, paths=[".//АдресРФ"], attribute="Дом"
         ) or self._get_first_existing_value(
-            contractor_element,
-            paths=[".//АдресРФ"],
-            attribute="Корпус"
+            contractor_element, paths=[".//АдресРФ"], attribute="Корпус"
         )
 
         postal_code = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//АдресРФ"],
-            attribute="Индекс"
+            contractor_element, paths=[".//АдресРФ"], attribute="Индекс"
         )
 
         return AddressEntity(
@@ -79,36 +76,32 @@ class XMLParserService:
             building=building,
         )
 
-    def _scrape_address_no_address_case(self, contractor_element: Et.Element) -> AddressEntity:
+    def _scrape_address_no_address_case(
+        self, contractor_element: Et.Element
+    ) -> AddressEntity:
         postal_code = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//СвАдрЮЛФИАС"],
-            attribute="Индекс"
+            contractor_element, paths=[".//СвАдрЮЛФИАС"], attribute="Индекс"
         )
         region = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//НаимРегион"]
+            contractor_element, paths=[".//НаимРегион"]
         )
         municipality = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//МуниципРайон"],
-            attribute="Наим"
+            contractor_element, paths=[".//МуниципРайон"], attribute="Наим"
         )
-        locality = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//НаселенПункт", ".//ГородСелПоселен"],
-            attribute="Наим"
-        ) or region
+        locality = (
+            self._get_first_existing_value(
+                contractor_element,
+                paths=[".//НаселенПункт", ".//ГородСелПоселен"],
+                attribute="Наим",
+            )
+            or region
+        )
 
         street = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//ЭлУлДорСети"],
-            attribute="Наим"
+            contractor_element, paths=[".//ЭлУлДорСети"], attribute="Наим"
         )
         building = self._get_first_existing_value(
-            contractor_element,
-            paths=[".//Здание"],
-            attribute="Номер"
+            contractor_element, paths=[".//Здание"], attribute="Номер"
         )
 
         return AddressEntity(
@@ -130,8 +123,12 @@ class XMLParserService:
                 "ogrn": contractor_element.get("ОГРН"),
                 "inn": contractor_element.get("ИНН"),
                 "kpp": contractor_element.get("КПП"),
-                "full_name": full_name_element.get("НаимЮЛПолн") if full_name_element is not None else None,
-                "short_name": short_name_element.get("НаимСокр") if short_name_element is not None else None,
+                "full_name": full_name_element.get("НаимЮЛПолн")
+                if full_name_element is not None
+                else None,
+                "short_name": short_name_element.get("НаимСокр")
+                if short_name_element is not None
+                else None,
             }
 
             return ContractorEntity(
@@ -160,46 +157,61 @@ class XMLParserService:
                 code = activity.get("КодОКВЭД")
                 name = activity.get("НаимОКВЭД")
 
-                activity_entities.append(
-                    ActivityEntity(
-                        code=code,
-                        name=name))
+                activity_entities.append(ActivityEntity(code=code, name=name))
 
             return activity_entities
         except Exception as e:
             logger.error(f"Error parsing activities: {e}")
             raise ValueError(f"Error parsing activities: {e}")
 
-    def scrape_contractor_composer(self, contractor_element) -> tuple[ActivityAddressContractorComposer, set]:
+    def scrape_contractor_composer(
+        self, contractor_element
+    ) -> tuple[ActivityAddressContractorComposer, set]:
         contractor = self.scrape_contractor_entity(contractor_element)
         activities = self.scrape_activities(contractor_element)
         activities_set = set(activities)
         address = self.scrape_address_entity(contractor_element.find(".//СвАдресЮЛ"))
 
-        return ActivityAddressContractorComposer(
-            contractor=contractor,
-            address=address,
-            activity=activities,
-        ), activities_set
+        return (
+            ActivityAddressContractorComposer(
+                contractor=contractor,
+                address=address,
+                activity=activities,
+            ),
+            activities_set,
+        )
 
-    def scrape_egrul(self, xml_file: str) -> tuple[list[ActivityAddressContractorComposer], set]:
-        logger.info(f"Starting to scrape EGRUL file: {xml_file}")
+    async def scrape_egrul(
+        self, file: UploadFile
+    ) -> tuple[list[ActivityAddressContractorComposer], set]:
+        logger.info(f"Starting to scrape EGRUL file: {file.filename}")
         try:
             scraped_contractors = []
             _all_activities_set = set()
 
-            try:
-                for event, contractor_element in Et.iterparse(xml_file, events=("end",)):
-                    if contractor_element.tag == "СвЮЛ":
-                        composer_entity, activities_set = self.scrape_contractor_composer(contractor_element)
-                        scraped_contractors.append(composer_entity)
-                        _all_activities_set |= activities_set
-                        contractor_element.clear()
-                logger.info(f"Finished scraping xml file total_contractors={len(scraped_contractors)}")
-                return scraped_contractors, _all_activities_set
-            except Et.ParseError as e:
-                logger.error(f"Invalid XML format in file {xml_file}: {e}")
-                raise ValueError(f"Invalid XML format in file {xml_file}: {e}")
-        except Exception as e:
-            logger.error(f"Unexpected error during parsing: {e}")
-            raise RuntimeError(f"Unexpected error during parsing: {e}")
+            file_content = await file.read()
+
+            if not file_content:
+                logger.error(f"File {file.filename} is empty.")
+                raise ValueError(f"File {file.filename} is empty.")
+
+            file_content = io.BytesIO(file_content)
+            for event, contractor_element in Et.iterparse(
+                file_content, events=("end",)
+            ):
+                if contractor_element.tag == "СвЮЛ":
+                    composer_entity, activities_set = self.scrape_contractor_composer(
+                        contractor_element
+                    )
+                    scraped_contractors.append(composer_entity)
+                    _all_activities_set |= activities_set
+                    contractor_element.clear()
+
+            logger.info(
+                f"Finished scraping xml file total_contractors={len(scraped_contractors)}"
+            )
+            return scraped_contractors, _all_activities_set
+
+        except Et.ParseError as e:
+            logger.error(f"Файл неверной структуры {file.filename}: {e}")
+            raise ValueError(f"Файл неверной структуры {file.filename}: {e}")

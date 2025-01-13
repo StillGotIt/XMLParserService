@@ -1,10 +1,11 @@
-from typing import Sequence
-
 from sqlalchemy import RowMapping
 
 from src.domain.entitites.adresses import AddressWithIdEntity
 from src.domain.entitites.contractors import ContractorWithIdEntity
-from src.domain.entitites.activities import ActivityModelEntity, ContractorActivityEntity
+from src.domain.entitites.activities import (
+    ActivityModelEntity,
+    ContractorActivityEntity,
+)
 
 
 def to_contractor_entity(data: RowMapping):

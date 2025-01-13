@@ -18,7 +18,7 @@ class ContractorEntity(BaseEntity):
             "short_name": self.short_name,
             "kpp": self.kpp,
             "inn": self.inn,
-            "ogrn": self.ogrn  # noqa
+            "ogrn": self.ogrn,  # noqa
         }
 
 
@@ -33,5 +33,5 @@ class ContractorWithIdEntity(ContractorEntity):
             "short_name": self.short_name,
             "kpp": self.kpp,
             "inn": self.inn,
-            "ogrn": self.ogrn  # noqa
+            "ogrn": self.ogrn,  # noqa
         }

@@ -17,7 +17,6 @@ class ActivityAddressContractorComposer(BaseEntity):
             "contractor": self.contractor,
             "address": self.address,
             "activity": self.activity,
-
         }
 
 
@@ -32,5 +31,4 @@ class ActivityAddressContractorWithIdComposer(BaseEntity):
             "contractor": self.contractor,
             "address": self.address,
             "activity": self.activity,
-
         }

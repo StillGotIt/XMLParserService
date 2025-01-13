@@ -12,22 +12,22 @@ from src.infra.repos.base import BaseRepository
 class ActivityContractorRepository(BaseRepository):
     model: Type[ActivityContractor] = ActivityContractor
 
-    async def read(self, data: dict[Any, Any], session: AsyncSession) -> RowMapping | None:
-        query = select(
-            self.model.contractor_id,
-            self.model.activity_id
-        ).filter_by(**data)
+    async def read(
+        self, data: dict[Any, Any], session: AsyncSession
+    ) -> RowMapping | None:
+        query = select(self.model.contractor_id, self.model.activity_id).filter_by(
+            **data
+        )
         result = await session.execute(query)
         return result.mappings().fetchone()
 
-    async def create(self, data: dict[Any, Any] | list[dict[Any, Any]], session: AsyncSession) -> RowMapping | None:
+    async def create(
+        self, data: dict[Any, Any] | list[dict[Any, Any]], session: AsyncSession
+    ) -> RowMapping | None:
         query = (
             insert(self.model)
             .values(data)
-            .returning(
-                self.model.contractor_id,
-                self.model.activity_id
-            )
+            .returning(self.model.contractor_id, self.model.activity_id)
         )
         created_entity = await session.execute(query)
         return created_entity.mappings().fetchone()
