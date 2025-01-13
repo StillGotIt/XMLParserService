@@ -4,25 +4,16 @@ from dataclasses import dataclass
 from io import BytesIO
 from typing import Callable, Iterable
 
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
-from src.domain.entitites.activities import ContractorActivityEntity
-from src.domain.entitites.adresses import AddressEntity
 from src.domain.entitites.base import BaseEntity
 from src.domain.entitites.composer import (
     ActivityAddressContractorComposer,
     ActivityAddressContractorWithIdComposer,
 )
 from src.infra.db.sql.db import AsyncPostgresClient
-from src.infra.repos.activities import ActivityRepository
-from src.infra.repos.activities_contractors import ActivityContractorRepository
-from src.infra.repos.adresses import AddressRepository
-from src.infra.repos.contractors import ContractorRepository
-from src.logic.services.activity_contractor_service import ActivityContractorService
-from src.logic.services.activity_service import ActivityService
-from src.logic.services.address_service import AddressService
-from src.logic.services.contractor_service import ContractorService
-from src.logic.services.xml_parser import XMLParserService
+from src.infra.db.sql.models.models import Contractor, Address, Activity
+from src.logic.services.xml_parser import XMLParserService, open_file
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,10 +25,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass(eq=False)
 class AddContractorActivityAddressUseCase:
-    contractor_service: ContractorService
-    activity_service: ActivityService
-    address_service: AddressService
-    activity_contractor_service: ActivityContractorService
     async_client: AsyncPostgresClient
     xml_parser_service: XMLParserService
 
@@ -47,31 +34,10 @@ class AddContractorActivityAddressUseCase:
 
         try:
             entities_list = self.xml_parser_service.scrape_egrul(file_content=file_content)
-
-            contractors = await self.bulk_create_entities(
-                entities_list, self.process_contractor_entity
-            )
-            logger.info(
-                f"Finished processing contractors entities len={len(entities_list)}"
-            )
-
-            await self.bulk_create_entities(
-                contractors, self.process_activity_entity, 3
-            )
-
-            logger.info(f"Finished processing activities and contractors relations")
-
-            await self.bulk_create_entities(
-                [contractor.address for contractor in contractors],
-                self.process_address_entity,
-            )
-
-            logger.info(
-                f"Finished processing addresses entities len={len(contractors)}"
-            )
-
-            logger.info(f"Finished processing entities")
-            return
+            logger.info(f"Scraped entitites len={len(entities_list)}")
+            result = await self.bulk_create_entities(entities_list=entities_list, process_func=self.bulk_create_all)
+            logger.info(f"Added entitites to db")
+            return result
 
         except Exception as e:
             logger.error(f"Error occurred during the scrape and create process: {e}")
@@ -82,118 +48,46 @@ class AddContractorActivityAddressUseCase:
             entities_list: Iterable[BaseEntity],
             process_func: Callable,
             chunk_size: int = 500,
-    ) -> list[ActivityAddressContractorWithIdComposer]:
+    ) -> list[tuple[BaseException | ActivityAddressContractorWithIdComposer]]:
         """Общая структура для асинхронной вставки пачек данных в БД.
         Принимает функцию, в данном случае метод класса и тригерит его
         по достижении порога chunk'а
         """
         chunk = []
-        successful_results = []
+        results = []
 
         for entity in entities_list:
             chunk.append(process_func(entity))
             if len(chunk) == chunk_size:
-                results = await asyncio.gather(*chunk, return_exceptions=True)
-                successful_results.extend(self.filter_successful_results(results))
+                results.append(await asyncio.gather(*chunk, return_exceptions=True))
                 chunk.clear()
 
         if chunk:
-            results = await asyncio.gather(*chunk, return_exceptions=True)
-            successful_results.extend(self.filter_successful_results(results))
+            results.append(await asyncio.gather(*chunk, return_exceptions=True))
 
-        return successful_results
+        return results
 
-    @staticmethod
-    def filter_successful_results(results):
-        """Фильтрация эксепшенов от приемлимых результатов выполнения"""
-        successful = []
-        for result in results:
-            if isinstance(result, Exception):
-                logger.error(f"Error occurred: {result}")
-            else:
-                successful.append(result)
-        return successful
-
-    async def process_contractor_entity(
-            self, entity: ActivityAddressContractorComposer
-    ) -> ActivityAddressContractorWithIdComposer:
+    async def bulk_create_all(self, entity: ActivityAddressContractorComposer):
         async with self.async_client.create_session() as session:
             try:
-                contractor_model_entity = await self.contractor_service.get_or_create(
-                    entity=entity.contractor, session=session
-                )
+                contractor = Contractor(**entity.contractor.to_dict())
+                address = Address(**entity.address.to_dict())
+                contractor.addresses.append(address)
+                for activity_data in entity.activity:
+                    activity = Activity(**activity_data.to_dict())
+                    contractor.activities.append(activity)
+                session.add(contractor)
                 await session.commit()
-
-                composer_entity = ActivityAddressContractorWithIdComposer(
-                    contractor=contractor_model_entity,
-                    address=AddressEntity(
-                        region=entity.address.region,
-                        municipality=entity.address.municipality,
-                        locality=entity.address.locality,
-                        street=entity.address.street,
-                        postal_code=entity.address.postal_code,
-                        building=entity.address.building,
-                        contractor_id=contractor_model_entity.id,
-                    ),
-                    activity=entity.activity,
-                )
-
-                return composer_entity
-            except SQLAlchemyError:
+            except IntegrityError as e:
                 await session.rollback()
-                logger.error(f"Error processing contractor entity: {entity.contractor}")
-
-    async def process_activity_entity(
-            self, entity: ActivityAddressContractorWithIdComposer
-    ):
-        async with self.async_client.create_session() as session:
-            try:
-                activities = [
-                    self.activity_service.get_or_create(
-                        entity=activity, session=session
-                    )
-                    for activity in entity.activity
-                ]
-                results = await asyncio.gather(*activities)
-
-                contractor_activity_data = [
-                    ContractorActivityEntity(
-                        contractor_id=entity.contractor.id, activity_id=activity.id
-                    )
-                    for activity in results
-                ]
-
-                await self.activity_contractor_service.bulk_create(
-                    entities=contractor_activity_data, session=session
-                )
-                await session.commit()
-
-                return results
-            except SQLAlchemyError:
+                raise e.detail
+            except SQLAlchemyError as e:
                 await session.rollback()
-                logger.error(f"Error processing activity entity")
-
-    async def process_address_entity(self, entity: AddressEntity):
-        async with self.async_client.create_session() as session:
-            try:
-                result = await self.address_service.get_or_create(
-                    entity=entity, session=session
-                )
-                await session.commit()
-                return result
-            except SQLAlchemyError:
-                await session.rollback()
-                logger.error(f"Error processing activity entity")
+                raise SQLAlchemyError(f"Sqlalchemy eror occurred {e}")
 
 
 def get_scrape_and_create_use_case() -> AddContractorActivityAddressUseCase:
     return AddContractorActivityAddressUseCase(
-        contractor_service=ContractorService(ContractorRepository()),
-        activity_service=ActivityService(ActivityRepository()),
-        address_service=AddressService(AddressRepository()),
-        activity_contractor_service=ActivityContractorService(
-            ActivityContractorRepository()
-        ),
         async_client=AsyncPostgresClient(),
         xml_parser_service=XMLParserService(),
     )
