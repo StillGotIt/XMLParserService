@@ -42,10 +42,7 @@ class AddContractorActivityAddressUseCase:
         logger.info(f"Starting to scrape and create entities from XML: {file}")
 
         try:
-            (
-                entities_list,
-                all_activities_set,
-            ) = await self.xml_parser_service.scrape_egrul(file=file)
+            entities_list = await self.xml_parser_service.scrape_egrul(file=file)
 
             contractors = await self.bulk_create_entities(
                 entities_list, self.process_contractor_entity

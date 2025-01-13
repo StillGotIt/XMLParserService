@@ -183,11 +183,10 @@ class XMLParserService:
 
     async def scrape_egrul(
         self, file: UploadFile
-    ) -> tuple[list[ActivityAddressContractorComposer], set]:
+    ) -> list[ActivityAddressContractorComposer]:
         logger.info(f"Starting to scrape EGRUL file: {file.filename}")
         try:
             scraped_contractors = []
-            _all_activities_set = set()
 
             file_content = await file.read()
 
@@ -204,13 +203,12 @@ class XMLParserService:
                         contractor_element
                     )
                     scraped_contractors.append(composer_entity)
-                    _all_activities_set |= activities_set
                     contractor_element.clear()
 
             logger.info(
                 f"Finished scraping xml file total_contractors={len(scraped_contractors)}"
             )
-            return scraped_contractors, _all_activities_set
+            return scraped_contractors
 
         except Et.ParseError as e:
             logger.error(f"Файл неверной структуры {file.filename}: {e}")
