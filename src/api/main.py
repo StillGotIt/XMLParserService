@@ -12,7 +12,6 @@ from src.logic.use_cases.contractor_activity_address_use_case import (
 def get_app():
     app = FastAPI(
         title="API",
-        description="API for parsing xml and generating summary with gpt",
     )
 
     @app.on_event("startup")

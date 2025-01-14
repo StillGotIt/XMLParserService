@@ -9,7 +9,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from src.domain.entitites.base import BaseEntity
 from src.domain.entitites.composer import (
     ActivityAddressContractorComposer,
-    ActivityAddressContractorWithIdComposer,
 )
 from src.infra.db.sql.db import AsyncPostgresClient
 from src.infra.db.sql.models.models import Contractor, Address, Activity
@@ -49,7 +48,7 @@ class AddContractorActivityAddressUseCase:
             entities_list: Iterable[BaseEntity],
             process_func: Callable,
             chunk_size: int = 500,
-    ) -> list[tuple[BaseException | ActivityAddressContractorWithIdComposer]]:
+    ) -> list[tuple[BaseException]]:
         """Общая структура для асинхронной вставки пачек данных в БД.
         Принимает функцию, в данном случае метод класса и тригерит его
         по достижении порога chunk'а
@@ -79,12 +78,14 @@ class AddContractorActivityAddressUseCase:
                     contractor.activities.append(activity)
                 session.add(contractor)
                 await session.commit()
+                logger.info(F"Entity with full name {entity.contractor.full_name} successfully added")
+                return entity
             except IntegrityError as e:
-                await session.rollback()
+                logger.error(f"IntegrityError occurred: {e}")
                 raise e.detail
             except SQLAlchemyError as e:
-                await session.rollback()
-                raise SQLAlchemyError(f"Sqlalchemy eror occurred {e}")
+                logger.error(f"SQLAlchemyError occurred: {e}")
+                raise SQLAlchemyError(f"SQLAlchemy error occurred {e}")
 
 
 def get_scrape_and_create_use_case() -> AddContractorActivityAddressUseCase:
